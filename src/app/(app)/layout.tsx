@@ -2,9 +2,7 @@ import { and, count, eq, inArray } from "drizzle-orm";
 import { Phone } from "lucide-react";
 import { db } from "@/db";
 import { inquiries } from "@/db/schema";
-import { providerLabel } from "@/lib/ai/provider";
 import { getCurrentUser, isManager } from "@/lib/auth/session";
-import { AssistantPanel } from "@/components/assistant/assistant-panel";
 import { openInquiryStatuses } from "@/lib/labels";
 import { Logo, PoweredBy, Tagline } from "@/components/brand/logo";
 import { MobileNav } from "@/components/shell/mobile-nav";
@@ -49,10 +47,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <Logo variant="black" className="w-20" />
           </div>
           <div className="hidden md:block" />
-          <div className="flex items-center gap-3">
-            <AssistantPanel role={user.role} provider={providerLabel} />
-            <UserMenu user={user} />
-          </div>
+          <UserMenu user={user} />
         </header>
         <main className="flex-1 px-4 py-6 md:px-8">{children}</main>
       </div>

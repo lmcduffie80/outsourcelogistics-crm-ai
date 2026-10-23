@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Inbox, PackageCheck, Settings, UserRoundSearch } from "lucide-react";
+import { BarChart3, Inbox, PackageCheck, Settings, Sparkles, UserRoundSearch } from "lucide-react";
 import type { Role } from "@/db/schema";
 import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/inquiries", label: "Inquiries", icon: Inbox, roles: ["rep", "manager", "admin"] },
   { href: "/orders", label: "Orders", icon: PackageCheck, roles: ["rep", "manager", "admin"] },
+  { href: "/assistant", label: "Chat Assistant", icon: Sparkles, roles: ["rep", "manager", "admin"] },
   { href: "/manager", label: "Team Dashboard", icon: BarChart3, roles: ["manager", "admin"] },
   { href: "/visitors", label: "Visitors", icon: UserRoundSearch, roles: ["admin"] },
   { href: "/settings", label: "Settings", icon: Settings, roles: ["admin"] },
