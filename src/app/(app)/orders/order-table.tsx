@@ -2,12 +2,13 @@
 
 import { useTransition } from "react";
 import Link from "next/link";
+import { format } from "date-fns";
 import { toast } from "sonner";
 import type { OrderStatus } from "@/db/schema";
 import { OrderStatusBadge, ServiceBadge } from "@/components/badges";
 import { columnHelper, DataTable } from "@/components/data-table";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { orderNumber, orderStatusLabels } from "@/lib/labels";
 import type { OrderRow } from "@/lib/orders";
 import { updateOrderStatusAction } from "./actions";
@@ -50,61 +51,82 @@ const columns = col.columns([
     header: "Order",
     cell: ({ row }) => (
       <div className="whitespace-nowrap">
-        <p className="font-semibold text-steel-800">{orderNumber(row.original.number)}</p>
-        {row.original.externalRef && <p className="text-xs text-muted-foreground">{row.original.externalRef}</p>}
-        {row.original.inquiryId && (
-          <Link href={`/inquiries/${row.original.inquiryId}`} className="text-xs text-steel-500 hover:underline">
-            View inquiry
+        {row.original.inquiryId ? (
+          <Link
+            href={`/inquiries/${row.original.inquiryId}`}
+            className="font-semibold text-steel-800 hover:underline"
+            title="Open the inquiry this order came from"
+          >
+            {orderNumber(row.original.number)}
           </Link>
+        ) : (
+          <p className="font-semibold text-steel-800">{orderNumber(row.original.number)}</p>
         )}
+        {row.original.externalRef && <p className="text-xs text-muted-foreground">{row.original.externalRef}</p>}
       </div>
     ),
   }),
-  col.accessor("customerName", {
+  col.accessor((r) => r.company ?? r.customerName, {
+    id: "customer",
     header: "Customer",
     cell: ({ row }) => (
-      <div className="whitespace-nowrap">
-        <p className="font-medium">{row.original.company ?? row.original.customerName}</p>
-        {row.original.company && <p className="text-xs text-muted-foreground">{row.original.customerName}</p>}
+      <div className="max-w-40">
+        <p className="truncate font-medium">{row.original.company ?? row.original.customerName}</p>
+        {row.original.company && <p className="truncate text-xs text-muted-foreground">{row.original.customerName}</p>}
       </div>
     ),
   }),
-  col.accessor("serviceType", { header: "Service", cell: (c) => <ServiceBadge type={c.getValue()} /> }),
-  col.accessor("description", {
-    header: "Description",
-    enableSorting: false,
-    cell: ({ row }) => (
-      <div className="max-w-xs">
-        <p className="line-clamp-2 text-sm">{row.original.description}</p>
-        {(row.original.origin || row.original.destination) && (
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {row.original.origin ?? "?"} → {row.original.destination ?? "?"}
-          </p>
-        )}
-      </div>
-    ),
+  col.accessor("serviceType", {
+    header: "Service & details",
+    cell: ({ row }) => {
+      const route = [row.original.origin, row.original.destination].filter(Boolean).join(" → ");
+      return (
+        <div className="max-w-68 min-w-56 space-y-1">
+          <div className="flex items-center gap-2">
+            <ServiceBadge type={row.original.serviceType} />
+            <p className="min-w-0 truncate text-sm" title={row.original.description ?? undefined}>
+              {row.original.description}
+            </p>
+          </div>
+          {route && (
+            <p className="truncate text-xs text-muted-foreground" title={route}>
+              {route}
+            </p>
+          )}
+        </div>
+      );
+    },
   }),
-  col.accessor((r) => r.repName ?? "", { id: "rep", header: "Rep" }),
+  col.accessor((r) => r.repName ?? "", {
+    id: "rep",
+    header: "Rep",
+    cell: (c) => <span className="whitespace-nowrap">{c.getValue() || "—"}</span>,
+  }),
   col.accessor("status", { header: "Status", cell: ({ row }) => <StatusCell row={row.original} /> }),
-  col.accessor((r) => r.value ?? 0, {
-    id: "value",
-    header: "Value",
-    cell: ({ row }) => <span className="font-semibold whitespace-nowrap">{formatMoney(row.original.value)}</span>,
-  }),
-  col.accessor("bookedAt", {
-    header: "Booked",
-    sortFn: "datetime",
-    cell: (c) => <span className="whitespace-nowrap">{formatDate(c.getValue())}</span>,
-  }),
-  col.accessor((r) => r.completedAt?.getTime() ?? 0, {
-    id: "completedAt",
-    header: "Completed",
-    cell: ({ row }) => (
-      <span className="whitespace-nowrap">{row.original.completedAt ? formatDate(row.original.completedAt) : "—"}</span>
-    ),
+  col.accessor((r) => (r.completedAt ?? r.bookedAt).getTime(), {
+    id: "date",
+    header: "Date",
+    cell: ({ row }) => {
+      const { completedAt, bookedAt } = row.original;
+      return (
+        <div className="whitespace-nowrap">
+          <p>{formatDate(completedAt ?? bookedAt)}</p>
+          <p className="text-xs text-muted-foreground">
+            {completedAt ? `Booked ${format(bookedAt, "MMM d")}` : "Booked"}
+          </p>
+        </div>
+      );
+    },
   }),
 ]);
 
 export function OrderTable({ rows }: { rows: Row[] }) {
-  return <DataTable columns={columns} data={rows} empty="No orders match these filters." />;
+  return (
+    <DataTable
+      columns={columns}
+      data={rows}
+      initialSorting={[{ id: "date", desc: true }]}
+      empty="No orders match these filters."
+    />
+  );
 }

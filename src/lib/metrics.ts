@@ -14,7 +14,7 @@ export function parseRange(value: unknown): RangeKey {
 
 export const rangeStart = (range: RangeKey) => new Date(Date.now() - ranges[range] * 86_400_000);
 
-const median = (xs: number[]) => {
+export const median = (xs: number[]) => {
   if (!xs.length) return null;
   const s = [...xs].sort((a, b) => a - b);
   const mid = Math.floor(s.length / 2);

@@ -4,13 +4,13 @@ import { Download } from "lucide-react";
 import { FilterBar, type FilterDef } from "@/components/filter-bar";
 import { PageHeader, StatCard } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCurrentUser, isManager } from "@/lib/auth/session";
-import { formatMoney } from "@/lib/format";
+import { formatDuration } from "@/lib/format";
 import { listActiveStaff } from "@/lib/inquiries/queries";
 import { orderStatusLabels, serviceTypeLabels } from "@/lib/labels";
-import { listOrders, parseOrderFilters, totalsByMonth } from "@/lib/orders";
+import { median } from "@/lib/metrics";
+import { countsByMonth, listOrders, orderCounts, parseOrderFilters } from "@/lib/orders";
+import { getSetting } from "@/lib/settings";
 import { ImportOrdersDialog } from "./import-dialog";
 import { OrderTable } from "./order-table";
 
@@ -20,11 +20,21 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
   const user = await getCurrentUser();
   const sp = await searchParams;
   const filters = parseOrderFilters(sp);
-  const [rows, staff] = await Promise.all([listOrders(filters), listActiveStaff()]);
+  const [rows, staff, counts, sla] = await Promise.all([
+    listOrders(filters),
+    listActiveStaff(),
+    orderCounts(filters),
+    getSetting("sla"),
+  ]);
   const manager = isManager(user);
 
-  const totalValue = rows.reduce((a, r) => a + (r.value ?? 0), 0);
-  const months = totalsByMonth(rows);
+  const responseMinutes = rows.flatMap((r) =>
+    r.inquiryReceivedAt && r.inquiryFirstResponseAt
+      ? [(r.inquiryFirstResponseAt.getTime() - r.inquiryReceivedAt.getTime()) / 60_000]
+      : [],
+  );
+  const medianResponse = median(responseMinutes);
+  const months = countsByMonth(rows);
   const completedView = filters.status === "completed";
   const exportQuery = new URLSearchParams(
     Object.entries(sp).filter((e): e is [string, string] => typeof e[1] === "string"),
@@ -93,51 +103,39 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
         }
       />
 
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
-        <StatCard label={completedView ? "Orders completed" : "Orders"} value={rows.length} tone="success" />
-        <StatCard label="Total value" value={formatMoney(totalValue)} />
-        <StatCard label="Average order" value={formatMoney(rows.length ? totalValue / rows.length : null)} />
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatCard label="Orders completed" value={counts.completed} tone="success" />
+        <StatCard label="Open orders" value={counts.open} hint="Booked or in progress" />
+        <StatCard
+          label="Time to respond"
+          value={formatDuration(medianResponse)}
+          hint={`Median first reply on these orders · target ${formatDuration(sla.firstResponseMinutes)}`}
+          tone={medianResponse !== null && medianResponse > sla.firstResponseMinutes ? "danger" : "default"}
+        />
       </div>
 
       <div className="mb-4">
         <FilterBar filters={filterDefs} searchPlaceholder="Search customer, ORD #, reference" />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
-        <OrderTable rows={rows.map((r) => ({ ...r, editable: manager || r.repId === user.id }))} />
-        <Card className="h-fit">
-          <CardHeader>
-            <CardTitle className="font-heading text-base">{completedView ? "Completed by month" : "By month"}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Month</TableHead>
-                  <TableHead className="text-right">Orders</TableHead>
-                  <TableHead className="text-right">Value</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {months.map((m) => (
-                  <TableRow key={m.month}>
-                    <TableCell>{format(parseISO(`${m.month}-01`), "MMM yyyy")}</TableCell>
-                    <TableCell className="text-right">{m.count}</TableCell>
-                    <TableCell className="text-right">{formatMoney(m.revenue)}</TableCell>
-                  </TableRow>
-                ))}
-                {months.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center text-muted-foreground">
-                      No orders
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
+      {months.length > 0 && (
+        <section className="mb-4" aria-label={completedView ? "Completed by month" : "Orders by month"}>
+          <h2 className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            {completedView ? "Completed by month" : "Booked by month"}
+          </h2>
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {months.map((m) => (
+              <div key={m.month} className="min-w-36 shrink-0 rounded-lg border bg-card px-4 py-3">
+                <p className="text-xs font-semibold text-steel-700">{format(parseISO(`${m.month}-01`), "MMM yyyy")}</p>
+                <p className="mt-1 font-heading text-xl text-steel-900 tabular-nums">{m.count}</p>
+                <p className="text-xs text-muted-foreground">{m.count === 1 ? "order" : "orders"}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <OrderTable rows={rows.map((r) => ({ ...r, editable: manager || r.repId === user.id }))} />
     </>
   );
 }

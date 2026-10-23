@@ -1,7 +1,16 @@
 import "server-only";
-import { and, desc, eq, gte, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
-import { customers, orderStatusEnum, orders, serviceTypeEnum, users, type OrderStatus, type ServiceType } from "@/db/schema";
+import {
+  customers,
+  inquiries,
+  orderStatusEnum,
+  orders,
+  serviceTypeEnum,
+  users,
+  type OrderStatus,
+  type ServiceType,
+} from "@/db/schema";
 
 export const orderRanges = { "30d": 30, "90d": 90, "365d": 365, all: null } as const;
 export type OrderRange = keyof typeof orderRanges;
@@ -76,10 +85,13 @@ export async function listOrders(filters: OrderFilters) {
       customerName: customers.name,
       company: customers.company,
       customerEmail: customers.email,
+      inquiryReceivedAt: inquiries.receivedAt,
+      inquiryFirstResponseAt: inquiries.firstResponseAt,
     })
     .from(orders)
     .innerJoin(customers, eq(customers.id, orders.customerId))
     .leftJoin(users, eq(users.id, orders.repId))
+    .leftJoin(inquiries, eq(inquiries.id, orders.inquiryId))
     .where(whereFor(filters))
     .orderBy(desc(sql`coalesce(${orders.completedAt}, ${orders.bookedAt})`))
     .limit(2000);
@@ -87,15 +99,30 @@ export async function listOrders(filters: OrderFilters) {
 
 export type OrderRow = Awaited<ReturnType<typeof listOrders>>[number];
 
-/** Totals per calendar month, keyed on completion date for completed orders and booking date otherwise. */
-export function totalsByMonth(rows: OrderRow[]) {
-  const map = new Map<string, { month: string; count: number; revenue: number }>();
+/** Completed orders in the selected range and currently open orders, honoring the rep/service/search filters. */
+export async function orderCounts(filters: OrderFilters) {
+  const count = (where: SQL | undefined) =>
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(orders)
+      .innerJoin(customers, eq(customers.id, orders.customerId))
+      .where(where)
+      .then((r) => r[0]?.n ?? 0);
+  const [completed, open] = await Promise.all([
+    count(whereFor({ ...filters, status: "completed" })),
+    count(and(whereFor({ ...filters, status: "all", range: "all" }), inArray(orders.status, ["booked", "in_progress"]))),
+  ]);
+  return { completed, open };
+}
+
+/** Order counts per calendar month, keyed on completion date for completed orders and booking date otherwise. */
+export function countsByMonth(rows: OrderRow[]) {
+  const map = new Map<string, { month: string; count: number }>();
   for (const r of rows) {
     const d = r.completedAt ?? r.bookedAt;
     const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const entry = map.get(month) ?? { month, count: 0, revenue: 0 };
+    const entry = map.get(month) ?? { month, count: 0 };
     entry.count++;
-    entry.revenue += r.value ?? 0;
     map.set(month, entry);
   }
   return [...map.values()].sort((a, b) => b.month.localeCompare(a.month));
