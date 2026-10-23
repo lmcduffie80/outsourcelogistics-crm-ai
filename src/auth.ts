@@ -4,6 +4,7 @@ import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users, type Role } from "@/db/schema";
+import { recordSignIn } from "@/lib/sign-ins";
 
 declare module "next-auth" {
   interface Session {
@@ -23,12 +24,16 @@ const csv = (v?: string) =>
 const allowedDomains = csv(process.env.ALLOWED_EMAIL_DOMAINS);
 const adminEmails = csv(process.env.ADMIN_EMAILS);
 
-/** Finds or provisions the staff user for an Entra sign-in. Returns null to deny. */
-async function provisionEntraUser(email: string, name: string, oid?: string) {
+/** Finds or provisions the staff user for an Entra sign-in, or explains why access is denied. */
+async function provisionEntraUser(
+  email: string,
+  name: string,
+  oid?: string,
+): Promise<{ user: typeof users.$inferSelect } | { denied: string }> {
   const normalized = email.toLowerCase();
   const existing = await db.query.users.findFirst({ where: eq(users.email, normalized) });
   if (existing) {
-    if (!existing.active) return null;
+    if (!existing.active) return { denied: "Account deactivated" };
     const [updated] = await db
       .update(users)
       .set({
@@ -38,10 +43,12 @@ async function provisionEntraUser(email: string, name: string, oid?: string) {
       })
       .where(eq(users.id, existing.id))
       .returning();
-    return updated;
+    return { user: updated };
   }
   const domain = normalized.split("@")[1];
-  if (!allowedDomains.includes(domain) && !adminEmails.includes(normalized)) return null;
+  if (!allowedDomains.includes(domain) && !adminEmails.includes(normalized)) {
+    return { denied: "Not on the allowed list" };
+  }
   const [created] = await db
     .insert(users)
     .values({
@@ -52,7 +59,7 @@ async function provisionEntraUser(email: string, name: string, oid?: string) {
       lastLoginAt: new Date(),
     })
     .returning();
-  return created;
+  return { user: created };
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -73,6 +80,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               });
               if (!user) return null;
               await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id));
+              await recordSignIn({ email: user.email, name: user.name, userId: user.id, allowed: true, method: "demo" });
               return { id: user.id, email: user.email, name: user.name };
             },
           }),
@@ -86,9 +94,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         | string
         | undefined;
       if (!email) return false;
-      const dbUser = await provisionEntraUser(email, user.name ?? email, profile?.oid as string | undefined);
-      if (!dbUser) return "/login?error=AccessDenied";
-      user.id = dbUser.id;
+      const result = await provisionEntraUser(email, user.name ?? email, profile?.oid as string | undefined);
+      if ("denied" in result) {
+        await recordSignIn({ email, name: user.name, allowed: false, reason: result.denied, method: "microsoft" });
+        return "/login?error=AccessDenied";
+      }
+      await recordSignIn({ email, name: result.user.name, userId: result.user.id, allowed: true, method: "microsoft" });
+      user.id = result.user.id;
       return true;
     },
     async jwt({ token, user }) {

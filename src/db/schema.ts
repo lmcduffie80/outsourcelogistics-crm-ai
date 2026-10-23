@@ -200,6 +200,26 @@ export const activityLog = pgTable(
   (t) => [index("activity_inquiry_idx").on(t.inquiryId, t.createdAt)],
 );
 
+export const signInEvents = pgTable(
+  "sign_in_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    email: text("email").notNull(),
+    name: text("name"),
+    allowed: boolean("allowed").notNull(),
+    reason: text("reason"),
+    method: text("method").notNull(),
+    ipAddress: text("ip_address"),
+    city: text("city"),
+    region: text("region"),
+    country: text("country"),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("sign_in_events_created_idx").on(t.createdAt)],
+);
+
 export const settings = pgTable("settings", {
   key: text("key").primaryKey(),
   value: jsonb("value").$type<unknown>().notNull(),
@@ -260,4 +280,5 @@ export type Priority = (typeof priorityEnum.enumValues)[number];
 export type Message = typeof messages.$inferSelect;
 export type AiDraft = typeof aiDrafts.$inferSelect;
 export type Order = typeof orders.$inferSelect;
+export type SignInEvent = typeof signInEvents.$inferSelect;
 export type OrderStatus = (typeof orderStatusEnum.enumValues)[number];
