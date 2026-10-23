@@ -1,0 +1,81 @@
+/*
+ * Outsource Logistics brand tokens, sampled from outsourcelogistics.com.
+ * Steel blue (#6786A1) is the site's header/footer/button color; service colors
+ * come from the homepage service imagery.
+ */
+@theme inline {
+  --font-sans: var(--font-open-sans), Helvetica, Arial, sans-serif;
+  --font-heading: var(--font-metrophobic), Helvetica, Arial, sans-serif;
+  --font-accent: Baskerville, "Palatino Linotype", Palatino, "Times New Roman", serif;
+
+  --color-steel-50: #f3f6f9;
+  --color-steel-100: #e3e9ef;
+  --color-steel-200: #c7d3df;
+  --color-steel-300: #a1b4c6;
+  --color-steel-400: #809bb3;
+  --color-steel-500: #6786a1;
+  --color-steel-600: #536e86;
+  --color-steel-700: #44596d;
+  --color-steel-800: #374859;
+  --color-steel-900: #2a3845;
+  --color-steel-950: #1b242d;
+
+  --color-svc-warehousing: #4f6f93;
+  --color-svc-transportation: #d48a31;
+  --color-svc-port: #5d9250;
+  --color-svc-value: #c94f40;
+
+  --color-success: #5d9250;
+  --color-warning: #d48a31;
+}
+
+:root {
+  --background: #f5f7f9;
+  --foreground: #222222;
+  --card: #ffffff;
+  --card-foreground: #222222;
+  --popover: #ffffff;
+  --popover-foreground: #222222;
+  --primary: #6786a1;
+  --primary-foreground: #ffffff;
+  --secondary: #e3e9ef;
+  --secondary-foreground: #2a3845;
+  --muted: #eef2f5;
+  --muted-foreground: #5f6b76;
+  --accent: #e3e9ef;
+  --accent-foreground: #2a3845;
+  --destructive: #c94f40;
+  --border: #dde3e9;
+  --input: #d3dae1;
+  --ring: #6786a1;
+  --chart-1: #4f6f93;
+  --chart-2: #5d9250;
+  --chart-3: #d48a31;
+  --chart-4: #c94f40;
+  --chart-5: #809bb3;
+  --radius: 0.5rem;
+  --sidebar: #374859;
+  --sidebar-foreground: #e3e9ef;
+  --sidebar-primary: #6786a1;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #44596d;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #44596d;
+  --sidebar-ring: #809bb3;
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-heading);
+    letter-spacing: 0.01em;
+  }
+}
+
+.brand-amp {
+  font-family: var(--font-accent);
+  font-style: italic;
+  color: var(--color-steel-500);
+}
