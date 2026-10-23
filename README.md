@@ -96,6 +96,7 @@ Create two app registrations in Microsoft Entra ID (or one, if you prefer).
 - API permissions → Microsoft Graph → **Application**: `Mail.ReadWrite` and `Mail.Send`. Grant admin consent.
 - Restrict the app to the shared mailbox only, with an [application access policy](https://learn.microsoft.com/graph/auth-limit-mailbox-access) or RBAC for Applications in Exchange Online. Without this, the app can read every mailbox in the tenant.
 - Set `GRAPH_TENANT_ID`, `GRAPH_CLIENT_ID`, `GRAPH_CLIENT_SECRET`, `GRAPH_MAILBOX`, and `MAIL_TRANSPORT=graph`.
+- To trial the connection without emailing customers, use `MAIL_TRANSPORT=graph-readonly` and grant only `Mail.Read`. The inbox is imported and drafted, but acknowledgments and rep replies are refused until you switch to `graph`.
 - For instant pickup, set `GRAPH_WEBHOOK_BASE_URL` to the app's public HTTPS URL and `GRAPH_WEBHOOK_SECRET` to a random string. The worker creates the inbox subscription and renews it every 12 hours. Without these, the 2-minute delta poll still picks up all mail.
 
 The admin **Settings** page shows whether the mailbox, webhook, AI server, and sign-in are configured.

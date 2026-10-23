@@ -1,16 +1,15 @@
 import { getBoss, type JobPayloads } from "@/lib/jobs";
-import { graphConfigured } from "@/lib/graph/client";
 import { getMessage, inboxDelta } from "@/lib/graph/mail";
 import { ensureSubscription } from "@/lib/graph/subscriptions";
 import { generateDraft, ingestEmail, sendAcknowledgment } from "@/lib/inquiries/service";
-import { transportName } from "@/lib/mail/transport";
+import { inboxLive, MailSendingDisabledError, transportName } from "@/lib/mail/transport";
 import { getSetting, setSetting } from "@/lib/settings";
 
 const log = (...args: unknown[]) => console.log(new Date().toISOString(), "[worker]", ...args);
 
 async function main() {
   const boss = await getBoss({ worker: true });
-  const graphLive = transportName() === "graph" && graphConfigured();
+  const graphLive = inboxLive();
   log(`started (mail transport: ${transportName()})`);
 
   await boss.work<JobPayloads["ingest-email"]>("ingest-email", { localConcurrency: 4 }, async ([job]) => {
@@ -26,8 +25,13 @@ async function main() {
   });
 
   await boss.work<JobPayloads["send-ack"]>("send-ack", async ([job]) => {
-    const r = await sendAcknowledgment(job.data.inquiryId);
-    log("send-ack", job.data.inquiryId, r.skipped ? "skipped" : "sent");
+    try {
+      const r = await sendAcknowledgment(job.data.inquiryId);
+      log("send-ack", job.data.inquiryId, r.skipped ? "skipped" : "sent");
+    } catch (err) {
+      if (!(err instanceof MailSendingDisabledError)) throw err;
+      log("send-ack", job.data.inquiryId, "not sent (read-only mailbox)");
+    }
   });
 
   // One draft at a time: a single Ollama instance processes requests serially anyway.

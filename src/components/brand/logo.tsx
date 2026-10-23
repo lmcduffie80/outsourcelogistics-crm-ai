@@ -21,3 +21,11 @@ export function Tagline({ className }: { className?: string }) {
     </p>
   );
 }
+
+export function PoweredBy({ className }: { className?: string }) {
+  return (
+    <p className={cn("text-[10px] tracking-wide", className)}>
+      Powered by <span className="font-semibold">Agrovus</span>
+    </p>
+  );
+}

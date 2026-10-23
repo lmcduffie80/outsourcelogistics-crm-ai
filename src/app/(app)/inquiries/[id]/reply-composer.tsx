@@ -5,6 +5,7 @@ import { Loader2, RefreshCw, Send, Sparkles, TriangleAlert } from "lucide-react"
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { takeReply, usePendingReply } from "@/components/assistant/reply-bridge";
 import { regenerateDraftAction, sendReplyAction } from "./actions";
 
 type Draft = { id: string; generatedText: string; model: string; createdAt: Date } | null;
@@ -33,6 +34,12 @@ export function ReplyComposer({
     setBody(draft?.generatedText ?? "");
   }
 
+  const assistantReply = usePendingReply(inquiryId);
+  if (assistantReply && canEdit) {
+    takeReply(assistantReply.nonce);
+    setBody(assistantReply.body);
+  }
+
   const fallback = draft && (draft.model === "template" || draft.model === "heuristic");
   const edited = draft ? body.trim() !== draft.generatedText.trim() : false;
 
@@ -54,7 +61,7 @@ export function ReplyComposer({
     });
 
   return (
-    <div className="rounded-lg border-2 border-steel-200 bg-card">
+    <div id="reply-composer" className="scroll-mt-20 rounded-lg border-2 border-steel-200 bg-card">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-steel-50 px-4 py-2.5">
         <div className="flex items-center gap-2 text-sm">
           <Sparkles className="size-4 text-steel-500" />

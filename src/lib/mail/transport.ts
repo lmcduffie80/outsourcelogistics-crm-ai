@@ -9,16 +9,31 @@ export type SentEmail = {
   fromAddress: string;
 };
 
-export const transportName = () =>
-  process.env.MAIL_TRANSPORT === "graph" && graphConfigured() ? "graph" : "fake";
+export type TransportName = "graph" | "graph-readonly" | "fake";
 
 /**
- * Sends email from the shared mailbox. With MAIL_TRANSPORT=fake (the default
- * without Graph credentials), nothing leaves the server; the message is logged.
+ * MAIL_TRANSPORT=graph reads the inbox and sends; graph-readonly reads the inbox
+ * but refuses to send; fake (the default) neither reads nor sends and logs outbound mail.
  */
+export const transportName = (): TransportName => {
+  const mode = process.env.MAIL_TRANSPORT;
+  if (!graphConfigured()) return "fake";
+  return mode === "graph" || mode === "graph-readonly" ? mode : "fake";
+};
+
+export const inboxLive = () => transportName() !== "fake";
+
+export class MailSendingDisabledError extends Error {
+  constructor() {
+    super("Sending is turned off while the mailbox is connected read-only (MAIL_TRANSPORT=graph-readonly)");
+  }
+}
+
 export async function sendEmail(email: OutboundEmail): Promise<SentEmail> {
   const internetMessageId = `<crm-${randomUUID()}@outsourcelogistics.com>`;
-  if (transportName() === "graph") {
+  const transport = transportName();
+  if (transport === "graph-readonly") throw new MailSendingDisabledError();
+  if (transport === "graph") {
     const sent = await sendViaGraph(email);
     return { ...sent, internetMessageId, fromAddress: mailbox() };
   }

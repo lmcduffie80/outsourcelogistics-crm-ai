@@ -4,7 +4,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { auth, demoEnabled, entraEnabled, signIn } from "@/auth";
 import { db } from "@/db";
 import { users } from "@/db/schema";
-import { Logo, Tagline } from "@/components/brand/logo";
+import { Logo, PoweredBy, Tagline } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -65,7 +65,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         <Tagline className="relative text-steel-200" />
       </section>
 
-      <section className="flex items-center justify-center p-6">
+      <section className="relative flex items-center justify-center p-6">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-3">
             <Logo variant="black" className="w-32 lg:hidden" />
@@ -116,6 +116,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
             )}
           </CardContent>
         </Card>
+        <PoweredBy className="absolute bottom-6 text-muted-foreground" />
       </section>
     </main>
   );

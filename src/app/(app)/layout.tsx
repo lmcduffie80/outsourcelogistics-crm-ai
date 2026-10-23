@@ -2,9 +2,11 @@ import { and, count, eq, inArray } from "drizzle-orm";
 import { Phone } from "lucide-react";
 import { db } from "@/db";
 import { inquiries } from "@/db/schema";
+import { providerLabel } from "@/lib/ai/provider";
 import { getCurrentUser, isManager } from "@/lib/auth/session";
+import { AssistantPanel } from "@/components/assistant/assistant-panel";
 import { openInquiryStatuses } from "@/lib/labels";
-import { Logo, Tagline } from "@/components/brand/logo";
+import { Logo, PoweredBy, Tagline } from "@/components/brand/logo";
 import { MobileNav } from "@/components/shell/mobile-nav";
 import { NavLinks } from "@/components/shell/nav-links";
 import { UserMenu } from "@/components/shell/user-menu";
@@ -36,6 +38,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <Phone className="size-3.5" /> (866) 726-2715
           </a>
           <Tagline className="text-[10px] text-steel-400" />
+          <PoweredBy className="text-steel-400" />
         </div>
       </aside>
 
@@ -46,7 +49,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <Logo variant="black" className="w-20" />
           </div>
           <div className="hidden md:block" />
-          <UserMenu user={user} />
+          <div className="flex items-center gap-3">
+            <AssistantPanel role={user.role} provider={providerLabel} />
+            <UserMenu user={user} />
+          </div>
         </header>
         <main className="flex-1 px-4 py-6 md:px-8">{children}</main>
       </div>

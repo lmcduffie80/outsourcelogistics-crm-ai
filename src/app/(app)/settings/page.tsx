@@ -70,8 +70,20 @@ export default async function SettingsPage() {
             />
             <StatusLine
               health={transport === "graph" ? "ok" : "warn"}
-              label={transport === "graph" ? "Sending real email" : "Sending is simulated"}
-              detail={transport === "graph" ? "Replies go out from the shared mailbox" : "MAIL_TRANSPORT=fake logs emails instead of sending"}
+              label={
+                transport === "graph"
+                  ? "Sending real email"
+                  : transport === "graph-readonly"
+                    ? "Read-only: sending is off"
+                    : "Sending is simulated"
+              }
+              detail={
+                transport === "graph"
+                  ? "Replies go out from the shared mailbox"
+                  : transport === "graph-readonly"
+                    ? "Inbox is read, but acknowledgments and replies are not sent (MAIL_TRANSPORT=graph-readonly)"
+                    : "MAIL_TRANSPORT=fake logs emails instead of sending"
+              }
             />
             <StatusLine
               health={!webhookConfigured() ? "off" : subExpires && subExpires > new Date() ? "ok" : "warn"}
